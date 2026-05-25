@@ -38,7 +38,7 @@ services:
     volumes:
       - ./entrypoint.sh:/usr/local/bin/entrypoint.sh:ro
 
-    command: ["/usr/local/bin/entrypoint.sh"]
+    command: ["/bin/sh", "/usr/local/bin/entrypoint.sh"]
 
     healthcheck:
       test: ["CMD", "nginx", "-t"]
