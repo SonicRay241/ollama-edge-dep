@@ -45,4 +45,11 @@ server {
 }
 EOF
 
-nginx -g 'daemon off;'
+echo "Generated config:"
+cat /etc/nginx/conf.d/default.conf
+
+echo "Testing nginx config..."
+nginx -t
+
+echo "Starting nginx..."
+exec nginx -g 'daemon off;'
