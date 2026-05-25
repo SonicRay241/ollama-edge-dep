@@ -11,6 +11,9 @@ services:
       OLLAMA_CONTEXT_LENGTH: ${OLLAMA_CONTEXT_LENGTH:-131072}
       OLLAMA_API_KEY: ${OLLAMA_API_KEY}
 
+    labels:
+     - 'traefik.http.middlewares.ollama-auth.basicauth.users=${BASIC_AUTHS}'
+
     volumes:
       - ollama_data:/root/.ollama
 
