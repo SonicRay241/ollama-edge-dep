@@ -1,0 +1,35 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+
+    expose:
+      - "11434"
+
+    environment:
+      OLLAMA_HOST: "0.0.0.0"
+      OLLAMA_CONTEXT_LENGTH: ${OLLAMA_CONTEXT_LENGTH:-131072}
+
+    volumes:
+      - ollama_data:/root/.ollama
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+
+    depends_on:
+      - ollama
+
+    ports:
+      - "80:80"
+
+    environment:
+      API_KEYS: ${API_KEYS}
+
+    volumes:
+      - ./entrypoint.sh:/entrypoint.sh:ro
+
+    command: ["/bin/sh", "/entrypoint.sh"]
+
+volumes:
+  ollama_data:
