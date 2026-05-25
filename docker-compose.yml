@@ -14,12 +14,20 @@ services:
     volumes:
       - ollama_data:/root/.ollama
 
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
   nginx:
     image: nginx:alpine
     restart: unless-stopped
 
     depends_on:
-      - ollama
+      ollama:
+        condition: service_healthy
 
     expose:
       - "80"
@@ -31,6 +39,13 @@ services:
       - ./entrypoint.sh:/entrypoint.sh:ro
 
     command: ["/bin/sh", "/entrypoint.sh"]
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
 volumes:
   ollama_data:
