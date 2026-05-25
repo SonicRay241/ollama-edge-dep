@@ -12,7 +12,7 @@ services:
       OLLAMA_API_KEY: ${OLLAMA_API_KEY}
 
     labels:
-     - 'traefik.http.middlewares.ollama-auth.basicauth.users=${BASIC_AUTHS}'
+     - 'traefik.http.middlewares.ollama-auth.basicauth.users=eryxz:$apr1$qoj2spQe$LwY9xlyzR4oTSpIWciWnt1'
 
     volumes:
       - ollama_data:/root/.ollama
