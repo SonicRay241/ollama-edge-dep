@@ -41,14 +41,14 @@ services:
   
       CONFIG=/etc/nginx/conf.d/default.conf;
   
-      echo "map \$http_authorization \$auth_ok {" > $$CONFIG;
+      echo "map \$\$http_authorization \$\$auth_ok {" > $$CONFIG;
       echo "    default 0;" >> $$CONFIG;
   
       OLDIFS="$$IFS";
       IFS=",";
   
       for key in $$API_KEYS; do
-        echo "    ~^Bearer\\ $$key\\$$ 1;" >> $$CONFIG;
+        echo "    ~^Bearer\\\\ $$key\\$$ 1;" >> $$CONFIG;
       done;
   
       IFS="$$OLDIFS";
@@ -60,7 +60,7 @@ services:
   
       echo "    location / {" >> $$CONFIG;
   
-      echo "        if (\$auth_ok = 0) {" >> $$CONFIG;
+      echo "        if (\$\$auth_ok = 0) {" >> $$CONFIG;
       echo "            return 401;" >> $$CONFIG;
       echo "        }" >> $$CONFIG;
   
@@ -71,7 +71,7 @@ services:
       echo "        proxy_buffering off;" >> $$CONFIG;
       echo "        proxy_request_buffering off;" >> $$CONFIG;
   
-      echo "        proxy_set_header Host \$host;" >> $$CONFIG;
+      echo "        proxy_set_header Host \$\$host;" >> $$CONFIG;
       echo "        proxy_set_header Connection \"\";" >> $$CONFIG;
   
       echo "        proxy_read_timeout 3600s;" >> $$CONFIG;
@@ -80,6 +80,7 @@ services:
       echo "    }" >> $$CONFIG;
       echo "}" >> $$CONFIG;
   
+      echo "=== GENERATED CONFIG ===";
       cat $$CONFIG;
   
       nginx -t;
