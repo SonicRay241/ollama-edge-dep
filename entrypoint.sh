@@ -1,26 +1,27 @@
 #!/bin/sh
+set -eu
 
-cat > /etc/nginx/conf.d/default.conf <<EOF
-map \$http_authorization \$auth_ok {
-    default 0;
-EOF
+CONFIG=/etc/nginx/conf.d/default.conf
 
+echo 'map $http_authorization $auth_ok {' > $CONFIG
+echo '    default 0;' >> $CONFIG
+
+OLDIFS="$IFS"
 IFS=','
 
 for key in $API_KEYS
 do
-cat >> /etc/nginx/conf.d/default.conf <<EOF
-    "~^Bearer ${key}\$" 1;
-EOF
+    echo "    ~^Bearer\\\\ ${key}\$ 1;" >> $CONFIG
 done
 
-cat >> /etc/nginx/conf.d/default.conf <<'EOF'
-}
+IFS="$OLDIFS"
+
+echo '}' >> $CONFIG
+
+cat >> $CONFIG <<'EOF'
 
 server {
     listen 80;
-
-    client_max_body_size 100M;
 
     location / {
 
@@ -34,7 +35,6 @@ server {
 
         proxy_buffering off;
         proxy_request_buffering off;
-        chunked_transfer_encoding on;
 
         proxy_set_header Host $host;
         proxy_set_header Connection "";
@@ -45,11 +45,9 @@ server {
 }
 EOF
 
-echo "Generated config:"
-cat /etc/nginx/conf.d/default.conf
+echo "=== GENERATED NGINX CONFIG ==="
+cat $CONFIG
 
-echo "Testing nginx config..."
 nginx -t
 
-echo "Starting nginx..."
 exec nginx -g 'daemon off;'

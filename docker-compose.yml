@@ -36,9 +36,9 @@ services:
       API_KEYS: ${API_KEYS}
 
     volumes:
-      - ./entrypoint.sh:/usr/local/bin/entrypoint.sh
+      - ./entrypoint.sh:/usr/local/bin/entrypoint.sh:ro
 
-    command: ["/bin/sh", "/usr/local/bin/entrypoint.sh"]
+    command: ["/usr/local/bin/entrypoint.sh"]
 
     healthcheck:
       test: ["CMD", "nginx", "-t"]
