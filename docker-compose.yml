@@ -24,12 +24,13 @@ services:
   nginx:
     image: openresty/openresty:alpine
     restart: unless-stopped
-    expose:
-      - "80"
+    ports:
+      - "80:80"
+      - "443:443"
     environment:
       - API_KEYS=${API_KEYS}
     volumes:
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx_container:/etc/nginx/conf.d:ro
     depends_on:
       - ollama
 
