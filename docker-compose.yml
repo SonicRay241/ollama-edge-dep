@@ -22,7 +22,7 @@ services:
       start_period: 60s
 
   nginx:
-    image: openresty/openresty:1.25.3.1-alpine
+    image: openresty/openresty:alpine
     restart: unless-stopped
     expose:
       - "80"
@@ -33,7 +33,7 @@ services:
     depends_on:
       - ollama
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:80/health || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
