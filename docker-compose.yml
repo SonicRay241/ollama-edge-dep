@@ -22,14 +22,10 @@ services:
       start_period: 60s
 
   proxy:
-    image: oven/bun:1-alpine
+    build: .
     restart: unless-stopped
-    command: ["sh", "-c", "chmod +x /app/auth.ts && bun run /app/auth.ts"]
-    working_dir: /app
     expose:
       - "8080"
-    volumes:
-      - ./auth.ts:/app/auth.ts:ro
     environment:
       - OLLAMA_URL=http://ollama:11434
       - API_KEYS=${API_KEYS}
