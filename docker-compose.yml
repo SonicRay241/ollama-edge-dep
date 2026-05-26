@@ -29,9 +29,15 @@ services:
     environment:
       - API_KEYS=${API_KEYS}
     volumes:
-      - ./nginx_container:/etc/nginx/conf.d:ro
+      - ./nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf:ro
     depends_on:
       - ollama
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
 volumes:
   ollama_data:
