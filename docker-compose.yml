@@ -29,7 +29,8 @@ services:
     environment:
       - API_KEYS=${API_KEYS}
     volumes:
-      - ./conf:/usr/local/openresty/nginx/conf:ro
+      - ./nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf:ro
+      - ./auth.lua:/usr/local/openresty/nginx/conf/auth.lua:ro
     depends_on:
       - ollama
     healthcheck:
