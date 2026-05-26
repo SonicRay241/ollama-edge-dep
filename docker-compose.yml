@@ -24,11 +24,12 @@ services:
   auth:
     image: python:3.11-slim
     restart: unless-stopped
-    command: python auth.py
+    command: python /app/auth.py
+    working_dir: /app
     expose:
       - "8080"
     volumes:
-      - ./auth.py:/auth.py:ro
+      - ./auth.py:/app/auth.py:ro
     environment:
       - API_KEYS=${API_KEYS}
 
