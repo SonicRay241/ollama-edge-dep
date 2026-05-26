@@ -24,7 +24,7 @@ services:
   proxy:
     image: oven/bun:1-alpine
     restart: unless-stopped
-    command: ["bun", "run", "/app/auth.ts"]
+    command: ["sh", "-c", "chmod +x /app/auth.ts && bun run /app/auth.ts"]
     working_dir: /app
     expose:
       - "8080"
