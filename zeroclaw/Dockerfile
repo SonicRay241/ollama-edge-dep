@@ -1,7 +1,7 @@
 FROM ghcr.io/zeroclaw-labs/zeroclaw:latest
 
 USER root
-RUN apt update && apt install -y chromium chromium-sandbox
+RUN apt update && apt install -y chromium chromium-sandbox && apt clean && rm -rf /var/lib/apt/lists/*
 
 RUN npm install -g agent-browser \
     && apt clean \
