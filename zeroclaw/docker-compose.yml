@@ -8,7 +8,6 @@ services:
       - "42617"   # gateway
     volumes:
       - ./data:/zeroclaw-data
-      - ./config:/zeroclaw-data/.zeroclaw:ro
     environment:
       ZEROCLAW_ALLOW_PUBLIC_BIND: "1"
       ZEROCLAW_providers__models__custom__cloud__api_key: "${MODEL_API_KEY}"
