@@ -1,5 +1,8 @@
 services:
   zeroclaw:
+    build:
+        context: .
+        dockerfile: Dockerfile
     restart: unless-stopped
     expose:
       - "42617"   # gateway
