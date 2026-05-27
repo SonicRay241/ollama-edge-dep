@@ -1,0 +1,17 @@
+services:
+  zeroclaw:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    expose:
+      - "42617"   # gateway
+      - "5900"      # VNC
+      - "6080"      # noVNC web interface
+    volumes:
+      - ./data:/zeroclaw-data
+      - ./config.toml:/zeroclaw-data/.zeroclaw/config.toml:ro
+    environment:
+      ZEROCLAW_ALLOW_PUBLIC_BIND: "1"
+      ZEROCLAW_providers__models__custom__cloud__api_key: "${MODEL_API_KEY}"
+      DISPLAY: ":99"

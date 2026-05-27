@@ -1,0 +1,25 @@
+schema_version = 3
+
+[browser]
+enabled = true
+allowed_domains = ["*"]
+backend = "agent_browser"
+
+# Provider entry. Section header is `[providers.models.<type>.<alias>]`:
+#   `custom` = type (fixed provider family name)
+#   `cloud`      = alias (you pick any name)
+[providers.models.custom.cloud]
+uri = "https://ollama.rayy.dev/v1"
+model = "minimax-m2.7:cloud"
+# Configure API key in ENV
+
+# Agent. Section header is `[agents.<alias>]`:
+#   `assistant` = alias (you pick any name)
+[agents.assistant]
+model_provider = "custom.cloud"   # `<type>.<alias>` reference to the entry above
+risk_profile   = "assistant"        # alias reference to the section below
+
+# Risk profile. Section header is `[risk_profiles.<alias>]`:
+#   `assistant` = must match agents.assistant.risk_profile
+[risk_profiles.assistant]
+level = "supervised"
