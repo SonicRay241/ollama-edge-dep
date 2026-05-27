@@ -1,4 +1,4 @@
-FROM ghcr.io/zeroclaw-labs/zeroclaw:latest
+FROM ghcr.io/zeroclaw-labs/zeroclaw:debian
 
 USER root
 RUN apt update && apt install -y chromium chromium-sandbox && apt clean && rm -rf /var/lib/apt/lists/*

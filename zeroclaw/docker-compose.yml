@@ -1,8 +1,6 @@
 services:
   zeroclaw:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/zeroclaw-labs/zeroclaw:debian
     restart: unless-stopped
     expose:
       - "42617"   # gateway
