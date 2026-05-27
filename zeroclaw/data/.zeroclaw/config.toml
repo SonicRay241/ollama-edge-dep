@@ -6,7 +6,7 @@ allowed_domains = ["*"]
 backend = "agent_browser"
 
 [providers]
-default_provider = "ollama" # or "anthropic", "gemini", "ollama", etc.
+default_provider = "custom" # or "anthropic", "gemini", "ollama", etc.
 default_model = "minimax-m2.7:cloud"
 
 # Provider entry. Section header is `[providers.models.<type>.<alias>]`:
@@ -15,6 +15,7 @@ default_model = "minimax-m2.7:cloud"
 [providers.models.custom.cloud]
 uri = "https://ollama.rayy.dev/v1"
 model = "minimax-m2.7:cloud"
+api_key = "${MODEL_API_KEY}"
 # Configure API key in ENV
 
 # Agent. Section header is `[agents.<alias>]`:

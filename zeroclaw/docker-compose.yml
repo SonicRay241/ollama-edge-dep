@@ -10,7 +10,7 @@ services:
       - zeroclaw-data:/zeroclaw-data
     environment:
       ZEROCLAW_ALLOW_PUBLIC_BIND: "1"
-      ZEROCLAW_providers__models__custom__cloud__api_key: "${MODEL_API_KEY}"
+      MODEL_API_KEY: "${MODEL_API_KEY}"
 
 volumes:
   zeroclaw-data:
