@@ -1,11 +1,11 @@
 FROM ghcr.io/zeroclaw-labs/zeroclaw:latest
 
 USER root
-RUN apt-get update && apt-get install -y \
+RUN apt update && apt install -y \
     chromium \
     chromium-sandbox \
     && npm install -g agent-browser \
-    && apt-get clean \
+    && apt clean \
     && rm -rf /var/lib/apt/lists/*
 
 USER 1000
