@@ -9,4 +9,4 @@ RUN npm install -g agent-browser \
 
 RUN agent-browser install --with-deps
 
-USER 1000
+USER 65534
