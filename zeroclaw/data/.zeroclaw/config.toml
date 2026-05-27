@@ -5,6 +5,10 @@ enabled = true
 allowed_domains = ["*"]
 backend = "agent_browser"
 
+[providers]
+default_provider = "ollama" # or "anthropic", "gemini", "ollama", etc.
+default_model = "minimax-m2.7:cloud"
+
 # Provider entry. Section header is `[providers.models.<type>.<alias>]`:
 #   `custom` = type (fixed provider family name)
 #   `cloud`      = alias (you pick any name)
