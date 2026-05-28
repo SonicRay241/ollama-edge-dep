@@ -8,5 +8,3 @@ RUN npm install -g agent-browser \
     && rm -rf /var/lib/apt/lists/*
 
 RUN agent-browser install --with-deps
-
-USER 65534
