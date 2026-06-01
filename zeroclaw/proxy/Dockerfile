@@ -1,4 +1,4 @@
 FROM oven/bun:1-alpine
 WORKDIR /app
-COPY ./zeroclaw/proxy/ .
+COPY . .
 CMD ["bun", "run", "/app/index.ts"]
