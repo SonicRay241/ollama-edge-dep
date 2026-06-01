@@ -26,7 +26,6 @@ services:
     expose:
       - "3000"
     environment:
-      ZC_PROTOCOL: "${ZC_PROTOCOL}"
       ZC_HOST: "zeroclaw:42617"
       HTTP_PORT: "3000"
       PROXY_USER_TOKEN_MAPPING: "${PROXY_USER_TOKEN_MAPPING}"
