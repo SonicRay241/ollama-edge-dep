@@ -1,8 +1,8 @@
 services:
   zeroclaw:
     build:
-        context: .
-        dockerfile: Dockerfile
+      context: .
+      dockerfile: Dockerfile
     restart: unless-stopped
     expose:
       - "42617"   # gateway
@@ -11,6 +11,26 @@ services:
     environment:
       ZEROCLAW_ALLOW_PUBLIC_BIND: "1"
       MODEL_API_KEY: "${MODEL_API_KEY}"
+    healthcheck:
+      test: ["CMD", "zeroclaw", "status", "--format=exit-code"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  zeroclaw-gateway-compat:
+    build:
+      context: proxy
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    expose:
+      - "3000"
+    environment:
+      ZC_PROTOCOL: "${ZC_PROTOCOL}"
+      ZC_HOST: "zeroclaw:42617"
+      HTTP_PORT: "3000"
+      PROXY_USER_TOKEN_MAPPING: "${PROXY_USER_TOKEN_MAPPING}"
+
 
 volumes:
   zeroclaw-data:
