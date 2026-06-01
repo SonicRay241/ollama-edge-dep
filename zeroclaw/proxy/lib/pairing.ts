@@ -1,9 +1,12 @@
+import { ZC_HOST } from "./constants";
+
 const TOKEN_FILE = "./.zeroclaw-token";
-const ZEROCLAW_URL = process.env.ZEROCLAW_URL || "https://openclaw.rayy.dev";
+const ZC_TOKEN = process.env.ZC_TOKEN
 
 export async function loadOrPair(): Promise<string> {
   try {
-    const token = await Bun.file(TOKEN_FILE).text();
+    const token = (await Bun.file(TOKEN_FILE).text()) || ZC_TOKEN;
+    if (token)
     return token.trim();
   } catch {
     // No saved token — must pair
@@ -18,7 +21,7 @@ export async function loadOrPair(): Promise<string> {
   }
 
   console.log("Pairing with ZeroClaw...");
-  const res = await fetch(`${ZEROCLAW_URL}/pair`, {
+  const res = await fetch(`http://${ZC_HOST}/pair`, {
     method: "POST",
     headers: { "X-Pairing-Code": code },
   });
