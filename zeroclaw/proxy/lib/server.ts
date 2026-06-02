@@ -59,12 +59,14 @@ export const createServer = (zcToken: string) =>
           status: 405,
         });
       }
-      
+
       const bearer = extractBearer(
         req.headers.get("authorization"),
       );
 
-      if (!bearer) {
+      const openwebui_uid = req.headers.get("x-openwebui-user-id")
+
+      if (!bearer && !openwebui_uid) {
         return new Response(
           JSON.stringify({
             error: {
@@ -77,7 +79,7 @@ export const createServer = (zcToken: string) =>
         );
       }
 
-      const discordUserId = getDiscordUserId(bearer);
+      const discordUserId = getDiscordUserId(openwebui_uid || bearer);
 
       if (!discordUserId) {
         return new Response(
