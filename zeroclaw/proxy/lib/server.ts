@@ -1,10 +1,9 @@
-import { type IncomingHttpHeaders } from "http";
 import { getDiscordUserId } from "./user-mapper";
 import type { ChatCompletionBody } from "./types";
 import { ZCBridge } from "./bridge";
 import { formatMessagesForZC } from "./message-formatter";
 import { sseEvent } from "./sse";
-import { HTTP_PORT } from "./constants";
+import { DEFAULT_API_KEY, HTTP_PORT } from "./constants";
 
 function extractBearer(auth: string | null): string | null {
   if (typeof auth === "string" && auth.startsWith("Bearer ")) {
@@ -66,7 +65,7 @@ export const createServer = (zcToken: string) =>
 
       const openWebuiEmail = req.headers.get("x-openwebui-user-email")
 
-      if (!bearer && !openWebuiEmail) {
+      if (!bearer) {
         return new Response(
           JSON.stringify({
             error: {
@@ -79,7 +78,14 @@ export const createServer = (zcToken: string) =>
         );
       }
 
-      const discordUserId = getDiscordUserId(openWebuiEmail || bearer);
+      // Check if bearer in registry
+      let discordUserId: string | null = null
+
+      discordUserId = getDiscordUserId(bearer);
+
+      if (!discordUserId && DEFAULT_API_KEY && bearer == DEFAULT_API_KEY) {
+        discordUserId = getDiscordUserId(openWebuiEmail)
+      }
 
       if (!discordUserId) {
         return new Response(
@@ -95,11 +101,12 @@ export const createServer = (zcToken: string) =>
       }
 
       // Resolve session ID
-      const chatId =
+      const openwebuiChatId =
         req.headers.get("x-openwebui-chat-id") ??
         req.headers.get("X-OpenWebUI-Chat-Id");
-      const sessionId = chatId
-        ? `openwebui_${chatId}_${discordUserId}`
+
+      const sessionId = openwebuiChatId
+        ? `openwebui_${openwebuiChatId}_${discordUserId}`
         : `openwebui_default_${discordUserId}`;
 
       let body: ChatCompletionBody;

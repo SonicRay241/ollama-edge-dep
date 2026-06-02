@@ -4,5 +4,6 @@ export const ZC_WS_URL    = process.env.ZC_WS_URL   ?? `${ZC_PROTOCOL}://${ZC_HO
 export const HTTP_PORT    = Number(process.env.HTTP_PORT ?? "8080");
 export const ZC_AGENT     = process.env.ZC_AGENT     ?? "default";
 
-export const USER_MAPPINGS = process.env.PROXY_USER_TOKEN_MAPPING || "";
-export const USER_MAPPINGS_OPEN_WEBUI = process.env.PROXY_USER_TOKEN_MAPPING_OPEN_WEBUI || "";
+export const USER_MAPPINGS = process.env.PROXY_USER_TOKEN_MAPPING || ""; // bearer:uid
+export const USER_MAPPINGS_OPEN_WEBUI = process.env.PROXY_USER_TOKEN_MAPPING_OPEN_WEBUI || ""; // reads openwebui email, and confirms the bearer token
+export const DEFAULT_API_KEY = process.env.DEFAULT_API_KEY;
