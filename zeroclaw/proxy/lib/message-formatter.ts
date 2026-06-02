@@ -28,3 +28,10 @@ export function formatMessagesForZC(messages: ChatMessage[]): string {
   }
   return parts.join("\n\n");
 }
+
+export function truncateString(str: string, maxLength: number) {
+  if (str.length > maxLength) {
+    return str.slice(0, maxLength) + '...';
+  }
+  return str;
+}

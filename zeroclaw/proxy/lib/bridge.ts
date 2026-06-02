@@ -1,4 +1,5 @@
 import { ZC_AGENT, ZC_WS_URL } from "./constants";
+import { truncateString } from "./message-formatter";
 import { sseEvent } from "./sse";
 import type { ZCFrame } from "./types";
 
@@ -110,7 +111,7 @@ export class ZCBridge {
         const args = JSON.stringify(frame.args ?? {});
         this.toolCallBuffer = { name, args };
 
-        const toolMsg = `\n🔧 \`${name}\`: \`${args}\``;
+        const toolMsg = `\n🔧 \`${name}\`: \`${truncateString(args, 50)}\``;
         this.buffer += toolMsg;
 
         this.onSSE(
@@ -134,23 +135,23 @@ export class ZCBridge {
       }
 
       case "tool_result": {
-        const toolMsg = " ✅\n";
-        this.buffer += toolMsg;
-        this.onSSE(
-          sseEvent({
-            id: `chatcmpl-${this.sessionId}`,
-            object: "chat.completion.chunk",
-            created: Math.floor(Date.now() / 1000),
-            model: this.modelName,
-            choices: [
-              {
-                index: 0,
-                delta: { content: toolMsg },
-                finish_reason: null,
-              },
-            ],
-          }),
-        );
+        // const toolMsg = "";
+        // this.buffer += toolMsg;
+        // this.onSSE(
+        //   sseEvent({
+        //     id: `chatcmpl-${this.sessionId}`,
+        //     object: "chat.completion.chunk",
+        //     created: Math.floor(Date.now() / 1000),
+        //     model: this.modelName,
+        //     choices: [
+        //       {
+        //         index: 0,
+        //         delta: { content: toolMsg },
+        //         finish_reason: null,
+        //       },
+        //     ],
+        //   }),
+        // );
         this.toolCallBuffer = null;
         break;
       }
