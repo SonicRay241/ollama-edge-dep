@@ -64,9 +64,9 @@ export const createServer = (zcToken: string) =>
         req.headers.get("authorization"),
       );
 
-      const openwebui_uid = req.headers.get("x-openwebui-user-id")
+      const openWebuiEmail = req.headers.get("x-openwebui-user-email")
 
-      if (!bearer && !openwebui_uid) {
+      if (!bearer && !openWebuiEmail) {
         return new Response(
           JSON.stringify({
             error: {
@@ -79,7 +79,7 @@ export const createServer = (zcToken: string) =>
         );
       }
 
-      const discordUserId = getDiscordUserId(openwebui_uid || bearer);
+      const discordUserId = getDiscordUserId(openWebuiEmail || bearer);
 
       if (!discordUserId) {
         return new Response(
