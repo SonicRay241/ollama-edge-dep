@@ -82,6 +82,7 @@ export class ZCBridge {
     switch (frame.type) {
       case "session_start":
         // Ignore — connection established
+        this.buffer += "\n"
         break;
 
       case "chunk": {
@@ -107,11 +108,23 @@ export class ZCBridge {
       }
 
       case "tool_call": {
+        const id = (frame.id as string) ?? ""
         const name = (frame.name as string) ?? "";
         const args = JSON.stringify(frame.args ?? {});
         this.toolCallBuffer = { name, args };
+        
+        const formattedName = name
+          .split('_')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ');
 
-        const toolMsg = `\n🔧 \`${name}\`: \`${truncateString(args, 50)}\``;
+        const escapedArgs = Bun.escapeHTML(args)
+        const escapedId = Bun.escapeHTML(id)
+
+        let toolMsg = `<details type="tool_calls" done="true" id="${escapedId}" name="${name}" arguments="${escapedArgs}">
+        </details>`
+
+        // const toolMsg = `\n🔧 \`${name}\`: \`${truncateString(args, 50)}\``;
         this.buffer += toolMsg;
 
         this.onSSE(
@@ -135,7 +148,18 @@ export class ZCBridge {
       }
 
       case "tool_result": {
-        // const toolMsg = "";
+        const id = (frame.id as string) ?? ""
+        const name = (frame.name as string) ?? this.toolCallBuffer?.name ?? "tool";
+        const output = (frame.output as string) ?? "";
+
+        const formattedName = name
+          .split('_')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ');
+
+        // const escapedOutput = Bun.escapeHTML(args)
+        // const escapedId = Bun.escapeHTML(id)
+        // const toolMsg = `\n\n<details type="tool_calls" name="${name}" done="true" id="${escapedId}"></details>\n\n`;
         // this.buffer += toolMsg;
         // this.onSSE(
         //   sseEvent({
