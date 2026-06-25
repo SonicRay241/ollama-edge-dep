@@ -107,21 +107,32 @@ export class ZCBridge {
         break;
       }
 
+      //! Soon
+      case "thinking": {
+        // const 
+        // let msg = `<details type="reasoning" done="true">${}
+        // </details>`
+        // console.log(frame);
+        
+        break;
+      }
+
       case "tool_call": {
         const id = (frame.id as string) ?? ""
         const name = (frame.name as string) ?? "";
         const args = JSON.stringify(frame.args ?? {});
         this.toolCallBuffer = { name, args };
-        
-        const formattedName = name
-          .split('_')
-          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-          .join(' ');
 
         const escapedArgs = Bun.escapeHTML(args)
         const escapedId = Bun.escapeHTML(id)
 
-        let toolMsg = `<details type="tool_calls" done="true" id="${escapedId}" name="${name}" arguments="${escapedArgs}">
+        let toolMsg = ""
+
+        if (this.buffer.length > 0 && this.buffer[this.buffer.length - 1] != ">") {
+          toolMsg += "\n"
+        }
+
+        toolMsg += `<details type="tool_calls" done="true" id="${escapedId}" name="${name}" arguments="${escapedArgs}">
         </details>`
 
         // const toolMsg = `\n🔧 \`${name}\`: \`${truncateString(args, 50)}\``;
