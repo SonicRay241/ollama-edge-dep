@@ -6,6 +6,7 @@ import type { ZCFrame } from "./types";
 export class ZCBridge {
   private ws: WebSocket;
   private buffer = "";
+  private isThinking = false;
   private toolCallBuffer: { name: string; args: string } | null = null;
   private resolveDone!: (value: void) => void;
   private rejectDone!: (reason: Error) => void;
@@ -87,7 +88,13 @@ export class ZCBridge {
 
       case "chunk": {
         const text = (frame.content as string) ?? "";
-        this.buffer += text;
+        let msg = ""
+        if (this.isThinking) {
+          msg += "</think>\n"
+          this.isThinking = false
+        }
+        msg += text
+        this.buffer += msg;
         // Stream as OpenAI delta
         this.onSSE(
           sseEvent({
@@ -98,7 +105,7 @@ export class ZCBridge {
             choices: [
               {
                 index: 0,
-                delta: { content: text },
+                delta: { content: msg },
                 finish_reason: null,
               },
             ],
@@ -107,12 +114,32 @@ export class ZCBridge {
         break;
       }
 
-      //! Soon
       case "thinking": {
-        // const 
-        // let msg = `<details type="reasoning" done="true">${}
-        // </details>`
-        // console.log(frame);
+        const text = (frame.content as string) ?? "";
+        let msg = ""
+        if (!this.isThinking) {
+          msg += "<think>"
+          this.isThinking = true
+        }
+        msg += text
+
+        this.buffer += msg
+
+        this.onSSE(
+          sseEvent({
+            id: `chatcmpl-${this.sessionId}`,
+            object: "chat.completion.chunk",
+            created: Math.floor(Date.now() / 1000),
+            model: this.modelName,
+            choices: [
+              {
+                index: 0,
+                delta: { content: msg },
+                finish_reason: null,
+              },
+            ],
+          }),
+        );
         
         break;
       }
