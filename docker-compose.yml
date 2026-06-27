@@ -29,8 +29,11 @@ services:
     environment:
       - OLLAMA_URL=http://ollama:11434
       - API_KEYS=${API_KEYS}
+    volumes:
+      - proxy_data:/app
     depends_on:
       - ollama
 
 volumes:
   ollama_data:
+  proxy_data:
