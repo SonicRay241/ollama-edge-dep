@@ -1,7 +1,8 @@
 FROM oven/bun:1-alpine
 WORKDIR /app
 COPY auth.ts .
-RUN mkdir -p /app/state && chown -R bun:bun /app
+RUN apk add --no-cache su-exec && \
+    mkdir -p /app/state && chown -R bun:bun /app
 VOLUME ["/app/state"]
 COPY --chmod=755 <<'ENTRY' /app/entrypoint.sh
 #!/bin/sh
