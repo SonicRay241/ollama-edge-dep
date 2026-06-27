@@ -30,7 +30,7 @@ services:
       - OLLAMA_URL=http://ollama:11434
       - API_KEYS=${API_KEYS}
     volumes:
-      - proxy_data:/app
+      - proxy_data:/app/state
     depends_on:
       - ollama
 

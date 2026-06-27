@@ -39,7 +39,12 @@ function logUsage(record: {
 }) {
   console.log(`${record.timestamp}: Logging to ${LOG_PATH}`)
   ensureLogDir(LOG_PATH);
-  appendFileSync(LOG_PATH, JSON.stringify(record) + "\n", "utf-8");
+  try {
+    appendFileSync(LOG_PATH, JSON.stringify(record) + "\n", "utf-8");
+    console.log(`${record.timestamp}: appended ${LOG_PATH}`);
+  } catch (err) {
+    console.error(`${record.timestamp}: FAILED to write ${LOG_PATH}`, err);
+  }
 }
 
 function parseGenerateBody(body: any) {
@@ -154,11 +159,14 @@ const server = Bun.serve({
   port: PORT,
   async fetch(req) {
     const url = new URL(req.url);
+    const timestamp = new Date().toISOString();
+    console.log(`${timestamp} ${req.method} ${url.pathname} from ${req.headers.get("x-forwarded-for") || "?"}`);
 
     const authHeader = req.headers.get("Authorization") || "";
     const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
 
     if (!validateToken(token)) {
+      console.log(`${timestamp} 401 Unauthorized`);
       return new Response("Unauthorized", { status: 401 });
     }
 
@@ -167,6 +175,7 @@ const server = Bun.serve({
     // Usage endpoint: returns only the authenticated key's usage for today
     if (url.pathname === "/usage") {
       const usage = readTodayUsage(keyHash);
+      console.log(`${timestamp} /usage entries=${usage.entries}`);
       return new Response(JSON.stringify({
         date: todayDate(),
         ...usage,
@@ -190,6 +199,7 @@ const server = Bun.serve({
     } as any);
 
     const res = await fetch(proxyReq);
+    console.log(`${timestamp} upstream ${res.status} ${res.statusText} content-type=${res.headers.get("content-type")}`);
 
     // Only intercept generate/chat responses with bodies
     if ((url.pathname === "/api/generate" || url.pathname === "/api/chat") && res.body) {
@@ -213,6 +223,7 @@ const server = Bun.serve({
       }
 
       const parsed = await parseOllamaResponse(url.pathname, res.headers.get("content-type"), fullBody);
+      console.log(`${timestamp} parsed=${parsed ? JSON.stringify(parsed) : "null"} body_bytes=${fullBody.length}`);
       if (parsed) {
         logUsage({
           timestamp: new Date().toISOString(),
@@ -224,6 +235,8 @@ const server = Bun.serve({
           endpoint: url.pathname,
           key_hash: keyHash,
         });
+      } else {
+        console.log(`${timestamp} skipped logging: endpoint=${url.pathname} content-type=${res.headers.get("content-type")}`);
       }
 
       return new Response(fullBody, {
