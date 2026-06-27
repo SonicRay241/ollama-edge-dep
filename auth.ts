@@ -37,6 +37,7 @@ function logUsage(record: {
   endpoint: string;
   key_hash: string;
 }) {
+  console.log(`${record.timestamp}: Logging to ${LOG_PATH}`)
   ensureLogDir(LOG_PATH);
   appendFileSync(LOG_PATH, JSON.stringify(record) + "\n", "utf-8");
 }
