@@ -63,6 +63,42 @@ function parseChatBody(body: any) {
   };
 }
 
+function parseOpenAIChatCompletionBody(text: string, defaultModel: string): { model: string; input_tokens: number; output_tokens: number } | null {
+  // OpenAI-compatible SSE: lines like "data: {...}" or a single JSON object.
+  // Ollama's /v1/chat/completions may stream chunks and a final chunk containing usage.
+  let lastUsage: { prompt_tokens?: number; completion_tokens?: number } | null = null;
+  let model = defaultModel;
+
+  const lines = text.split("\n");
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) continue;
+
+    let jsonText = line;
+    if (line.startsWith("data:")) {
+      jsonText = line.slice(5).trim();
+    }
+
+    if (jsonText === "[DONE]") continue;
+
+    try {
+      const json = JSON.parse(jsonText);
+      if (json.model) model = json.model;
+      if (json.usage) {
+        lastUsage = json.usage;
+      }
+    } catch {}
+  }
+
+  if (!lastUsage) return null;
+
+  return {
+    model: model || "unknown",
+    input_tokens: lastUsage.prompt_tokens || 0,
+    output_tokens: lastUsage.completion_tokens || 0,
+  };
+}
+
 async function parseOllamaResponse(
   endpoint: string,
   contentType: string | null,
@@ -103,6 +139,10 @@ async function parseOllamaResponse(
         } catch {}
       }
     }
+  }
+
+  if (endpoint === "/v1/chat/completions") {
+    return parseOpenAIChatCompletionBody(text, "unknown");
   }
 
   return null;
@@ -201,8 +241,12 @@ const server = Bun.serve({
     const res = await fetch(proxyReq);
     console.log(`${timestamp} upstream ${res.status} ${res.statusText} content-type=${res.headers.get("content-type")}`);
 
-    // Only intercept generate/chat responses with bodies
-    if ((url.pathname === "/api/generate" || url.pathname === "/api/chat") && res.body) {
+    const isLoggable =
+      url.pathname === "/api/generate" ||
+      url.pathname === "/api/chat" ||
+      url.pathname === "/v1/chat/completions";
+
+    if (isLoggable && res.body) {
       const chunks: Uint8Array[] = [];
       const reader = res.body.getReader();
       try {
