@@ -17,6 +17,9 @@ export class ZCBridge {
   private resolveConnected!: (value: void) => void;
   private connectedPromise: Promise<void>;
 
+  private cancelResolve!: (value: void) => void;
+  private cancelPromise: Promise<void> | null = null;
+
   constructor(
     private sessionId: string,
     private bearerToken: string,
@@ -65,6 +68,9 @@ export class ZCBridge {
         // If we haven't sent a done event yet, send one now
         this.flushFinalAssistantMessage();
         this.resolveDone();
+      }
+      if (this.cancelPromise) {
+        this.cancelResolve();
       }
       console.log(
         `Connection closed. Code: ${event.code}, Reason: ${event.reason || "None"}`,
@@ -248,6 +254,13 @@ export class ZCBridge {
         break;
       }
 
+      case "turn_complete": {
+        if (this.cancelPromise) {
+          this.cancelResolve();
+        }
+        break;
+      }
+
       case "error": {
         const msg = (frame.message as string) ?? "Unknown ZeroClaw error";
         const code = (frame.code as string) ?? "ZC_ERROR";
@@ -317,7 +330,24 @@ export class ZCBridge {
     return this.donePromise;
   }
 
-  close() {
+  async cancel(): Promise<void> {
+    if (this.cancelPromise) {
+      return this.cancelPromise;
+    }
+
+    this.cancelPromise = new Promise((res) => {
+      this.cancelResolve = res;
+    });
+
+    if (this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({ type: "cancel" }));
+      // If the daemon doesn't acknowledge within 5 seconds, close anyway.
+      setTimeout(() => {
+        this.cancelResolve();
+      }, 5000);
+      await this.cancelPromise;
+    }
+
     this.aborted = true;
     clearInterval(this.pingInterval);
     this.ws.close();

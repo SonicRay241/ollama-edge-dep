@@ -226,12 +226,31 @@ export const createServer = (zcToken: string) =>
 
       const streamController = new ReadableStream({
         start(controller) {
+          let closed = false;
+          const safeEnqueue = (chunk: string) => {
+            const encoded = new TextEncoder().encode(chunk);
+            if (closed) return;
+            try {
+              controller.enqueue(encoded);
+            } catch {
+              // Controller may already be closed due to client-side cancellation.
+              closed = true;
+            }
+          };
+          const safeClose = () => {
+            if (closed) return;
+            closed = true;
+            try {
+              controller.close();
+            } catch {
+              // Already closed by the consumer.
+            }
+          };
+
           const bridge = new ZCBridge(
             sessionId,
             zcToken,
-            (chunk) => {
-              controller.enqueue(new TextEncoder().encode(chunk));
-            },
+            safeEnqueue,
             modelName,
           );
 
@@ -240,28 +259,27 @@ export const createServer = (zcToken: string) =>
             bridge
               .waitForDone()
               .then(() => {
-                controller.close();
+                safeClose();
               })
               .catch((err: Error) => {
-                controller.enqueue(
-                  new TextEncoder().encode(
-                    sseEvent({
-                      error: {
-                        message: err.message,
-                        type: "proxy_error",
-                        code: "bridge_failed",
-                      },
-                    }),
-                  ),
+                safeEnqueue(
+                  sseEvent({
+                    error: {
+                      message: err.message,
+                      type: "proxy_error",
+                      code: "bridge_failed",
+                    },
+                  }),
                 );
-                controller.close();
+                safeClose();
               });
           });
 
           // Abort handling
           req.signal.addEventListener("abort", () => {
-            bridge.close();
-            controller.close();
+            bridge.cancel().then(() => {
+              safeClose();
+            });
           });
         },
       });

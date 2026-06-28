@@ -59,7 +59,7 @@ export function sseEvent(data: unknown, id?: string): string {
   while (start < bytes.length) {
     let end = Math.min(bytes.length, start + available);
     // Do not slice in the middle of a multi-byte UTF-8 sequence.
-    while (end > start && (bytes[end] & 0xc0) === 0x80) {
+    while (end > start && ((bytes[end] ?? 0) & 0xc0) === 0x80) {
       end--;
     }
     if (end === start) {
