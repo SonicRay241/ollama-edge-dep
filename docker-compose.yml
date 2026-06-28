@@ -1,6 +1,6 @@
 services:
   ollama:
-    image: ollama/ollama:latest
+    image: alpine/ollama:latest
     restart: unless-stopped
 
     expose:
