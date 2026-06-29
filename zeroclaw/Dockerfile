@@ -1,4 +1,4 @@
-FROM ghcr.io/zeroclaw-labs/zeroclaw:debian
+FROM ghcr.io/zeroclaw-labs/zeroclaw:v0.8.2-debian
 
 USER root
 RUN apt update && apt install -y chromium chromium-sandbox nodejs npm python3-pip && apt clean && rm -rf /var/lib/apt/lists/*
