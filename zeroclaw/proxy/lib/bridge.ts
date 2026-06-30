@@ -45,7 +45,7 @@ export class ZCBridge {
     ]);
 
     this.ws.onopen = () => {
-      this.resolveConnected();s
+      this.resolveConnected();
     };
 
     this.ws.onmessage = (evt) => {
