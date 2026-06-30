@@ -6,12 +6,17 @@ import { Database } from "bun:sqlite";
 const OLLAMA_URL = process.env.OLLAMA_URL || "http://ollama:11434";
 const PORT = parseInt(process.env.PORT || "8080");
 const API_KEYS = (process.env.API_KEYS || "").split(",").map(k => k.trim()).filter(Boolean);
+const SYSTEM_KEY = process.env.SYSTEM_KEY || "";
 const LOG_PATH = process.env.LOG_PATH || "state/proxy-costs.jsonl";
 const DB_PATH = process.env.DB_PATH || "state/proxy-costs.db";
 
 function validateToken(token: string): boolean {
   if (API_KEYS.length === 0) return true;
-  return API_KEYS.includes(token);
+  return API_KEYS.includes(token) || (SYSTEM_KEY.length > 0 && token === SYSTEM_KEY);
+}
+
+function isSystemToken(token: string): boolean {
+  return SYSTEM_KEY.length > 0 && token === SYSTEM_KEY;
 }
 
 function ensureDir(path: string) {
@@ -223,30 +228,22 @@ async function parseOllamaResponse(
   return null;
 }
 
-function readTodayUsage(keyHash: string): {
+type UsageResult = {
   total_input_tokens: number;
   total_output_tokens: number;
   total_tokens: number;
   entries: number;
   by_model: Record<string, { input: number; output: number; total: number }>;
-} {
-  const result = {
+};
+
+function aggregateUsage(rows: { model: string; input: number; output: number; total: number; entries: number }[]): UsageResult {
+  const result: UsageResult = {
     total_input_tokens: 0,
     total_output_tokens: 0,
     total_tokens: 0,
     entries: 0,
-    by_model: {} as Record<string, { input: number; output: number; total: number }>,
+    by_model: {},
   };
-
-  const today = todayDate();
-  const rows = db
-    .query<
-      { model: string; input: number; output: number; total: number; entries: number },
-      [string, string]
-    >(
-      "SELECT model, SUM(input_tokens) AS input, SUM(output_tokens) AS output, SUM(total_tokens) AS total, COUNT(*) AS entries FROM usage_logs WHERE date = ? AND key_hash = ? GROUP BY model"
-    )
-    .all(today, keyHash);
 
   for (const row of rows) {
     result.entries += row.entries;
@@ -261,6 +258,74 @@ function readTodayUsage(keyHash: string): {
   }
 
   return result;
+}
+
+function readTodayUsage(keyHash: string): UsageResult {
+  const today = todayDate();
+  const rows = db
+    .query<
+      { model: string; input: number; output: number; total: number; entries: number },
+      [string, string]
+    >(
+      "SELECT model, SUM(input_tokens) AS input, SUM(output_tokens) AS output, SUM(total_tokens) AS total, COUNT(*) AS entries FROM usage_logs WHERE date = ? AND key_hash = ? GROUP BY model"
+    )
+    .all(today, keyHash);
+  return aggregateUsage(rows);
+}
+
+function readAllTodayUsage(): {
+  total_input_tokens: number;
+  total_output_tokens: number;
+  total_tokens: number;
+  entries: number;
+  by_key: Record<string, UsageResult>;
+} {
+  const today = todayDate();
+  const rows = db
+    .query<
+      { key_hash: string; model: string; input: number; output: number; total: number; entries: number },
+      [string]
+    >(
+      "SELECT key_hash, model, SUM(input_tokens) AS input, SUM(output_tokens) AS output, SUM(total_tokens) AS total, COUNT(*) AS entries FROM usage_logs WHERE date = ? GROUP BY key_hash, model"
+    )
+    .all(today);
+
+  const byKey: Record<string, UsageResult> = {};
+  for (const row of rows) {
+    if (!byKey[row.key_hash]) {
+      byKey[row.key_hash] = {
+        total_input_tokens: 0,
+        total_output_tokens: 0,
+        total_tokens: 0,
+        entries: 0,
+        by_model: {},
+      };
+    }
+    byKey[row.key_hash].entries += row.entries;
+    byKey[row.key_hash].total_input_tokens += row.input;
+    byKey[row.key_hash].total_output_tokens += row.output;
+    byKey[row.key_hash].total_tokens += row.total;
+    byKey[row.key_hash].by_model[row.model] = {
+      input: row.input,
+      output: row.output,
+      total: row.total,
+    };
+  }
+
+  const totals = Object.values(byKey).reduce(
+    (acc, u) => ({
+      total_input_tokens: acc.total_input_tokens + u.total_input_tokens,
+      total_output_tokens: acc.total_output_tokens + u.total_output_tokens,
+      total_tokens: acc.total_tokens + u.total_tokens,
+      entries: acc.entries + u.entries,
+    }),
+    { total_input_tokens: 0, total_output_tokens: 0, total_tokens: 0, entries: 0 }
+  );
+
+  return {
+    ...totals,
+    by_key: byKey,
+  };
 }
 
 const server = Bun.serve({
@@ -280,8 +345,19 @@ const server = Bun.serve({
 
     const keyHash = hashToken(token);
 
-    // Usage endpoint: returns only the authenticated key's usage for today
+    // Usage endpoint: regular keys see only their own usage; SYSTEM_KEY sees all users.
     if (url.pathname === "/usage") {
+      if (isSystemToken(token)) {
+        const usage = readAllTodayUsage();
+        console.log(`${timestamp} /usage system view entries=${usage.entries} keys=${Object.keys(usage.by_key).length}`);
+        return new Response(JSON.stringify({
+          date: todayDate(),
+          ...usage,
+        }, null, 2), {
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
       const usage = readTodayUsage(keyHash);
       console.log(`${timestamp} /usage entries=${usage.entries}`);
       return new Response(JSON.stringify({
