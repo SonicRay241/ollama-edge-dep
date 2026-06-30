@@ -1,18 +1,20 @@
-import { appendFileSync, existsSync, mkdirSync, readFileSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, unlinkSync } from "fs";
 import { createHash } from "crypto";
 import { dirname } from "path";
+import { Database } from "bun:sqlite";
 
 const OLLAMA_URL = process.env.OLLAMA_URL || "http://ollama:11434";
 const PORT = parseInt(process.env.PORT || "8080");
 const API_KEYS = (process.env.API_KEYS || "").split(",").map(k => k.trim()).filter(Boolean);
 const LOG_PATH = process.env.LOG_PATH || "state/proxy-costs.jsonl";
+const DB_PATH = process.env.DB_PATH || "state/proxy-costs.db";
 
 function validateToken(token: string): boolean {
   if (API_KEYS.length === 0) return true;
   return API_KEYS.includes(token);
 }
 
-function ensureLogDir(path: string) {
+function ensureDir(path: string) {
   const dir = dirname(path);
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true });
@@ -27,6 +29,71 @@ function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex").slice(0, 16);
 }
 
+const db = (() => {
+  ensureDir(DB_PATH);
+  const database = new Database(DB_PATH);
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS usage_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      timestamp TEXT NOT NULL,
+      date TEXT NOT NULL,
+      model TEXT NOT NULL,
+      input_tokens INTEGER NOT NULL DEFAULT 0,
+      output_tokens INTEGER NOT NULL DEFAULT 0,
+      total_tokens INTEGER NOT NULL DEFAULT 0,
+      endpoint TEXT NOT NULL,
+      key_hash TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_usage_date_key ON usage_logs(date, key_hash);
+  `);
+  return database;
+})();
+
+const insertUsage = db.prepare(
+  "INSERT INTO usage_logs (timestamp, date, model, input_tokens, output_tokens, total_tokens, endpoint, key_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+);
+
+function migrateFromJsonl() {
+  if (!existsSync(LOG_PATH)) return;
+
+  console.log(`Migrating legacy usage log from ${LOG_PATH} to ${DB_PATH}`);
+  const text = readFileSync(LOG_PATH, "utf-8");
+  const lines = text.split("\n").filter(Boolean);
+  let migrated = 0;
+
+  for (const line of lines) {
+    try {
+      const rec = JSON.parse(line);
+      const input = rec.input_tokens || 0;
+      const output = rec.output_tokens || 0;
+      insertUsage.run(
+        rec.timestamp,
+        rec.date,
+        rec.model || "unknown",
+        input,
+        output,
+        rec.total_tokens ?? input + output,
+        rec.endpoint || "unknown",
+        rec.key_hash || "unknown"
+      );
+      migrated++;
+    } catch (err) {
+      console.error("Failed to migrate usage record:", err);
+    }
+  }
+
+  try {
+    unlinkSync(LOG_PATH);
+    console.log(`Deleted migrated log file ${LOG_PATH}`);
+  } catch (err) {
+    console.error(`Failed to delete ${LOG_PATH}:`, err);
+  }
+
+  console.log(`Migrated ${migrated} records`);
+}
+
+migrateFromJsonl();
+
 function logUsage(record: {
   timestamp: string;
   date: string;
@@ -37,13 +104,21 @@ function logUsage(record: {
   endpoint: string;
   key_hash: string;
 }) {
-  console.log(`${record.timestamp}: Logging to ${LOG_PATH}`)
-  ensureLogDir(LOG_PATH);
+  console.log(`${record.timestamp}: Logging usage for ${record.key_hash}`);
   try {
-    appendFileSync(LOG_PATH, JSON.stringify(record) + "\n", "utf-8");
-    console.log(`${record.timestamp}: appended ${LOG_PATH}`);
+    insertUsage.run(
+      record.timestamp,
+      record.date,
+      record.model,
+      record.input_tokens,
+      record.output_tokens,
+      record.total_tokens,
+      record.endpoint,
+      record.key_hash
+    );
+    console.log(`${record.timestamp}: inserted usage record`);
   } catch (err) {
-    console.error(`${record.timestamp}: FAILED to write ${LOG_PATH}`, err);
+    console.error(`${record.timestamp}: FAILED to insert usage record`, err);
   }
 }
 
@@ -163,33 +238,26 @@ function readTodayUsage(keyHash: string): {
     by_model: {} as Record<string, { input: number; output: number; total: number }>,
   };
 
-  if (!existsSync(LOG_PATH)) {
-    return result;
-  }
-
   const today = todayDate();
-  const text = readFileSync(LOG_PATH, "utf-8");
-  const lines = text.split("\n").filter(Boolean);
+  const rows = db
+    .query<
+      { model: string; input: number; output: number; total: number; entries: number },
+      [string, string]
+    >(
+      "SELECT model, SUM(input_tokens) AS input, SUM(output_tokens) AS output, SUM(total_tokens) AS total, COUNT(*) AS entries FROM usage_logs WHERE date = ? AND key_hash = ? GROUP BY model"
+    )
+    .all(today, keyHash);
 
-  for (const line of lines) {
-    try {
-      const rec = JSON.parse(line);
-      if (rec.date !== today) continue;
-      if (rec.key_hash !== keyHash) continue;
-
-      result.entries++;
-      result.total_input_tokens += rec.input_tokens || 0;
-      result.total_output_tokens += rec.output_tokens || 0;
-      result.total_tokens += rec.total_tokens || 0;
-
-      const model = rec.model || "unknown";
-      if (!result.by_model[model]) {
-        result.by_model[model] = { input: 0, output: 0, total: 0 };
-      }
-      result.by_model[model].input += rec.input_tokens || 0;
-      result.by_model[model].output += rec.output_tokens || 0;
-      result.by_model[model].total += rec.total_tokens || 0;
-    } catch {}
+  for (const row of rows) {
+    result.entries += row.entries;
+    result.total_input_tokens += row.input;
+    result.total_output_tokens += row.output;
+    result.total_tokens += row.total;
+    result.by_model[row.model] = {
+      input: row.input,
+      output: row.output,
+      total: row.total,
+    };
   }
 
   return result;
@@ -332,5 +400,5 @@ const server = Bun.serve({
 });
 
 console.log(`Auth proxy running on port ${server.port}`);
-console.log(`Usage log: ${LOG_PATH}`);
+console.log(`Usage DB: ${DB_PATH}`);
 console.log(`Usage endpoint: http://localhost:${server.port}/usage`);
