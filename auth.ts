@@ -49,6 +49,7 @@ const db = (() => {
       endpoint TEXT NOT NULL,
       key_hash TEXT NOT NULL
     );
+    CREATE INDEX IF NOT EXISTS idx_usage_date ON usage_logs(date);
     CREATE INDEX IF NOT EXISTS idx_usage_date_key ON usage_logs(date, key_hash);
   `);
   return database;
@@ -273,6 +274,18 @@ function readTodayUsage(keyHash: string): UsageResult {
   return aggregateUsage(rows);
 }
 
+function readUsageRecordsAfterDate(afterDate: string) {
+  const rows = db
+    .query<
+      { id: number; timestamp: string; date: string; model: string; input_tokens: number; output_tokens: number; total_tokens: number; endpoint: string; key_hash: string },
+      [string]
+    >(
+      "SELECT id, timestamp, date, model, input_tokens, output_tokens, total_tokens, endpoint, key_hash FROM usage_logs WHERE date > ? ORDER BY date, timestamp"
+    )
+    .all(afterDate);
+  return rows;
+}
+
 function readAllTodayUsage(): {
   total_input_tokens: number;
   total_output_tokens: number;
@@ -363,6 +376,31 @@ const server = Bun.serve({
       return new Response(JSON.stringify({
         date: todayDate(),
         ...usage,
+      }, null, 2), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    // Export endpoint: pull raw usage records after a given date (SYSTEM_KEY only).
+    if (url.pathname === "/usage/export" && req.method === "GET") {
+      if (!isSystemToken(token)) {
+        console.log(`${timestamp} 403 Forbidden export attempt from non-system key`);
+        return new Response("Forbidden", { status: 403 });
+      }
+
+      const afterDate = url.searchParams.get("after-date") || "";
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(afterDate)) {
+        return new Response(JSON.stringify({ error: "Invalid or missing after-date query param (YYYY-MM-DD)" }), {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      const records = readUsageRecordsAfterDate(afterDate);
+      console.log(`${timestamp} /usage/export after-date=${afterDate} records=${records.length}`);
+      return new Response(JSON.stringify({
+        after_date: afterDate,
+        records,
       }, null, 2), {
         headers: { "Content-Type": "application/json" },
       });
