@@ -25,6 +25,8 @@ services:
     restart: unless-stopped
     expose:
       - "3000"
+    volumes:
+      - zeroclaw-data:/zeroclaw-data
     environment:
       ZC_HOST: "zeroclaw:42617"
       HTTP_PORT: "3000"
