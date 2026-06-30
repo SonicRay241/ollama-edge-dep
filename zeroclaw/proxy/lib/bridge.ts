@@ -12,7 +12,6 @@ export class ZCBridge {
   private rejectDone!: (reason: Error) => void;
   private donePromise: Promise<void>;
   private aborted = false;
-  private pingInterval?: Timer;
 
   private resolveConnected!: (value: void) => void;
   private connectedPromise: Promise<void>;
@@ -46,12 +45,7 @@ export class ZCBridge {
     ]);
 
     this.ws.onopen = () => {
-      this.resolveConnected();
-      this.pingInterval = setInterval(() => {
-        if (this.ws.readyState === WebSocket.OPEN) {
-          this.ws.send(JSON.stringify({ type: "ping" }));
-        }
-      }, 30000);
+      this.resolveConnected();s
     };
 
     this.ws.onmessage = (evt) => {
@@ -63,7 +57,6 @@ export class ZCBridge {
     };
 
     this.ws.onclose = (event) => {
-      clearInterval(this.pingInterval);
       if (!this.aborted) {
         // If we haven't sent a done event yet, send one now
         this.flushFinalAssistantMessage();
@@ -349,7 +342,6 @@ export class ZCBridge {
     }
 
     this.aborted = true;
-    clearInterval(this.pingInterval);
     this.ws.close();
   }
 }
