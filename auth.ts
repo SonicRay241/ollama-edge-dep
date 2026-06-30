@@ -231,10 +231,45 @@ const server = Bun.serve({
       if (k.toLowerCase() !== "authorization") headers[k] = v;
     });
 
+    let body: BodyInit | null = req.body;
+
+    // Middleware: ensure Ollama returns token usage for logging.
+    if (req.method !== "GET" && req.method !== "HEAD" && (
+      url.pathname === "/api/generate" ||
+      url.pathname === "/api/chat" ||
+      url.pathname === "/v1/chat/completions"
+    )) {
+      try {
+        const original = await req.json();
+
+        if (url.pathname === "/v1/chat/completions") {
+          // OpenAI-compatible: request usage in the final streaming chunk.
+          original.stream_options = original.stream_options || {};
+          if (original.stream !== false) {
+            original.stream_options.include_usage = true;
+          }
+        } else {
+          // Native Ollama endpoints: no special flag needed; usage is in the done chunk.
+          // Ensure streaming is enabled so we get a done chunk with counts.
+          if (original.stream === undefined) {
+            original.stream = true;
+          }
+        }
+
+        body = JSON.stringify(original);
+        headers["content-type"] = "application/json";
+        headers["content-length"] = String(Buffer.byteLength(body, "utf-8"));
+        console.log(`${timestamp} injected usage flags for ${url.pathname}`);
+      } catch (err) {
+        // Not JSON or no body; pass through unchanged.
+        console.log(`${timestamp} could not inject usage flags: ${err}`);
+      }
+    }
+
     const proxyReq = new Request(targetUrl, {
       method: req.method,
       headers,
-      body: req.body,
+      body,
       duplex: "half",
     } as any);
 
