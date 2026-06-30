@@ -3,7 +3,7 @@ import type { ChatCompletionBody } from "./types";
 import { ZCBridge } from "./bridge";
 import { formatMessagesForZC } from "./message-formatter";
 import { sseEvent } from "./sse";
-import { COST_JSONL_PATH, DEFAULT_API_KEY, HTTP_PORT } from "./constants";
+import { COST_JSONL_PATH, DEFAULT_API_KEY, HTTP_PORT, SYSTEM_KEY } from "./constants";
 
 function extractBearer(auth: string | null): string | null {
   if (typeof auth === "string" && auth.startsWith("Bearer ")) {
@@ -50,6 +50,16 @@ export const createServer = (zcToken: string) =>
             status: 405,
             headers: { "Content-Type": "application/json" },
           });
+        }
+
+        if (SYSTEM_KEY) {
+          const providedKey = extractBearer(req.headers.get("authorization"));
+          if (providedKey !== SYSTEM_KEY) {
+            return new Response(
+              JSON.stringify({ error: "Unauthorized" }),
+              { status: 401, headers: { "Content-Type": "application/json" } },
+            );
+          }
         }
 
         const afterDateRaw = url.searchParams.get("after-date");
