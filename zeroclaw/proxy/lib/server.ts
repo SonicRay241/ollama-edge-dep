@@ -3,7 +3,7 @@ import type { ChatCompletionBody } from "./types";
 import { ZCBridge } from "./bridge";
 import { formatMessagesForZC } from "./message-formatter";
 import { sseEvent } from "./sse";
-import { DEFAULT_API_KEY, HTTP_PORT } from "./constants";
+import { COST_JSONL_PATH, DEFAULT_API_KEY, HTTP_PORT } from "./constants";
 
 function extractBearer(auth: string | null): string | null {
   if (typeof auth === "string" && auth.startsWith("Bearer ")) {
@@ -41,6 +41,71 @@ export const createServer = (zcToken: string) =>
             headers: { "Content-Type": "application/json" },
           },
         );
+      }
+
+      // Usage export
+      if (url.pathname === "/usage/export") {
+        if (req.method !== "GET") {
+          return new Response(JSON.stringify({ error: "Method not allowed" }), {
+            status: 405,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        const afterDateRaw = url.searchParams.get("after-date");
+        let afterDate: Date | null = null;
+        if (afterDateRaw) {
+          afterDate = new Date(afterDateRaw);
+          if (Number.isNaN(afterDate.getTime())) {
+            return new Response(
+              JSON.stringify({ error: "Invalid after-date" }),
+              { status: 400, headers: { "Content-Type": "application/json" } },
+            );
+          }
+        }
+
+        try {
+          const file = Bun.file(COST_JSONL_PATH);
+          if (!(await file.exists())) {
+            return new Response("", {
+              headers: { "Content-Type": "application/x-ndjson" },
+            });
+          }
+
+          const text = await file.text();
+          const lines = text.split("\n").filter((line) => line.trim() !== "");
+          const results: string[] = [];
+
+          for (const line of lines) {
+            try {
+              const parsed = JSON.parse(line);
+              const timestamp = parsed?.usage?.timestamp;
+              if (timestamp) {
+                const ts = new Date(timestamp);
+                if (Number.isNaN(ts.getTime())) {
+                  continue;
+                }
+                if (afterDate && ts <= afterDate) {
+                  continue;
+                }
+              } else if (afterDate) {
+                continue;
+              }
+              results.push(line);
+            } catch {
+              // skip malformed lines
+            }
+          }
+
+          return new Response(results.join("\n") + (results.length ? "\n" : ""), {
+            headers: { "Content-Type": "application/x-ndjson" },
+          });
+        } catch (err: any) {
+          return new Response(
+            JSON.stringify({ error: err.message }),
+            { status: 500, headers: { "Content-Type": "application/json" } },
+          );
+        }
       }
 
       // Only handle chat completions
