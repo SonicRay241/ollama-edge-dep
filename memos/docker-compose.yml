@@ -1,0 +1,30 @@
+version: "3.8"
+
+services:
+  memos:
+    image: neosmemo/memos:stable
+    container_name: memos
+    restart: unless-stopped
+    expose:
+      - "5230"
+    volumes:
+      - ./memos-data:/var/opt/memos
+    environment:
+      # Allow webhooks to hit private/internal addresses
+      # (needed if Windmill runs on the same Docker network)
+      MEMOS_ALLOW_PRIVATE_WEBHOOKS: "true"
+      
+      # Optional: change default data path
+      # MEMOS_DATA: /var/opt/memos
+      
+      # Optional: set the instance URL for webhook payloads
+      MEMOS_INSTANCE_URL: "https://notes.rayy.dev"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5230/api/v1/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  memos-data:
