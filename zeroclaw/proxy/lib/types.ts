@@ -3,9 +3,24 @@ export interface ZCFrame {
   [key: string]: unknown;
 }
 
+export interface TextContentPart {
+  type: "text";
+  text: string;
+}
+
+export interface ImageContentPart {
+  type: "image_url";
+  image_url: {
+    url: string;
+    detail?: "low" | "high" | "auto";
+  };
+}
+
+export type ChatContentPart = TextContentPart | ImageContentPart;
+
 export interface ChatMessage {
   role: "system" | "user" | "assistant" | "tool";
-  content: string;
+  content: string | ChatContentPart[];
 }
 
 export interface ChatCompletionBody {

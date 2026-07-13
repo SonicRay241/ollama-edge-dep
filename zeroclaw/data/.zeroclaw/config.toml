@@ -8,7 +8,7 @@ web_dist_dir = "/zeroclaw-data/web/dist"
 idempotency_max_keys = 10000
 idempotency_ttl_secs = 300
 pair_rate_limit_per_minute = 10
-paired_tokens = ["enc2:df51255320b11ab19cf5fa89e3b2a2c6b99c60a34fdf93d498791b9cd9f7be37c77ba476c623762bd89564ba0410f0c5163eb652597ba92521881e03c7c7d9d08584d59e3eba17e4fedd45cfc457b788006c8303c43c46568a49b154"]
+paired_tokens = ["enc2:e6a29fdb6143075bd8a1c3d25793d0395cd49caa94753e00c0eb5cbf4c3b7d3a44f711700ce3b7538d7471cd26180bb62a328541a01390143d71242851522411d3039277da65305cdd4e95c4089db44fca149fbb91471b7e59cf4e6d", "enc2:5af4df951c764eab5650ecb77830e7346fe3115d75ccb66e99fa641d0164c2222a10fdd19365fcc0eb016f915d3718ac2e0caf9c4a29253dc70e47838adaae7c246c86ce37c0b5b4346c81869f0be984cc96f20c798d8b63d3c3ad33", "enc2:93dbd4e71095f492a96e874e8c6284e9286c7d10affc557ef94ea1ea69ee71b4e83079c3089284bff780cb0693cb574d4e44a46c1ca65ecd5d1e7cc2d9e7459831126382c81be7c2dc0a3909178ac7f65e19120fff573d851b3b33f5"]
 rate_limit_max_keys = 10000
 require_pairing = true
 session_persistence = true
@@ -25,14 +25,14 @@ max_pending_codes = 3
 
 [agent]
 compact_context = true
-context_aware_tools = false
+context_aware_tools = true
 keep_tool_context_turns = 2
 max_context_tokens = 32000
 max_history_messages = 50
 max_system_prompt_chars = 0
 max_tool_iterations = 10
 max_tool_result_chars = 50000
-parallel_tools = false
+parallel_tools = true
 tool_call_dedup_exempt = []
 tool_dispatcher = "auto"
 tool_filter_groups = []
@@ -59,7 +59,7 @@ min_quality_score = 0.5
 collapse_tool_results = true
 enabled = false
 keep_recent = 4
-max_tokens = 8192
+max_tokens = 16384
 
 [agent.thinking]
 default_level = "medium"
@@ -129,7 +129,7 @@ show_tool_calls = false
 [channels.discord]
 allowed_users = ["635010697406971904"]
 approval_timeout_secs = 60
-bot_token = "enc2:4e655520d675a1901cb18e8f61ebea8bab4d2c9e63976709d6b509dc819c458e5a89042610e2f020300b4abc2568a2f39d70201f947f4d68cffe9460ce9d2bc8972c0f9b2456fae9acf59da6db299efe17b4d7734976c295c12e9ebe1535c3bcd30f1e64"
+bot_token = "enc2:5850ec8fe43069232331e83c9a2a898344a71fc7e278842e7588d85959d137053c33049f8be0ebd25b76f3d1d9c46c864f6d3c3f86211a131fbd01d655a43c5ff245953fb6e6f8494c181c1e19edc5b16d39493d23ab39ef76c07bee20d4a2a8c7ebd1d2"
 draft_update_interval_ms = 0
 enabled = true
 interrupt_on_new_message = true
@@ -141,7 +141,7 @@ stream_mode = "off"
 
 [channels.discord_history]
 allowed_users = ["635010697406971904"]
-bot_token = "enc2:94ae6c3f884d31fc43769aa7c8a342ca41a1b54c108db9e9c4493f9e010f5787f3a9c8557be75227889d2c94abda76155b89e9b5c5c5616df80290e81b4cec67735714bc96f20be8a3711522e08aef2c561bfe7f6865c5fea6ee5be50de4556e2ffef69e"
+bot_token = "enc2:9c9989702590765334839c6122733f7e71ed195dbd99409945a79663d75ffbdd04cd5340f9223c02f0af2f2e1168c8f16113efecc9d2f2208f1e3b5416080f56977060ee603f4906ca8e12d576e469ea1bfd6cc16c9da5331a2cb56e04b2fd79be0dfe01"
 channel_ids = []
 enabled = true
 respond_to_dms = true
@@ -319,7 +319,7 @@ timeout_secs = 30
 auto_capture = false
 cross_workspace_search = false
 db_path = "/zeroclaw-data/.zeroclaw/knowledge.db"
-enabled = false
+enabled = true
 max_nodes = 100000
 suggest_on_query = true
 
@@ -506,18 +506,19 @@ report_output_dir = "/zeroclaw-data/.zeroclaw/project-reports"
 risk_sensitivity = "medium"
 
 [providers]
-fallback = "custom.gateway"
+fallback = "custom:http://ollama:11434/v1"
 
 [providers.models]
 
-[providers.models.custom.gateway]
-api_key = "enc2:e24faaefac748d12d77958dacbde23bc8de94ed848b48977f1153406065db19ee7f4cfedc3f31bf49fca149efc"
-base_url = "https://ollama.rayy.dev"
+[providers.models."custom:http://ollama:11434"]
+base_url = "http://ollama:11434/v1"
 max_tokens = 131072
-model = "minimax-m2.7:cloud"
 temperature = 0.5
-timeout_secs = 600
+timeout_secs = 120
 wire_api = "chat_completions"
+model = "kimi-k2.6:cloud"
+name = "kimi"
+native_tools = true
 
 [proxy]
 enabled = false
@@ -627,7 +628,7 @@ open_skills_enabled = false
 prompt_injection_mode = "full"
 
 [skills.skill_creation]
-enabled = false
+enabled = true
 max_skills = 500
 similarity_threshold = 0.85
 
