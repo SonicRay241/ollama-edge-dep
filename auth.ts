@@ -120,7 +120,7 @@ function logUsage(record: {
   total_tokens: number;
   endpoint: string;
   key_hash: string;
-  cached_input_tokens: number;
+  cached_input_tokens: number | null;
 }) {
   console.log(`${record.timestamp}: Logging usage for ${record.key_hash}`);
   try {
@@ -146,7 +146,7 @@ function parseGenerateBody(body: any) {
     model: body?.model || "unknown",
     input_tokens: body?.prompt_eval_count || 0,
     output_tokens: body?.eval_count || 0,
-    cached_input_tokens: typeof body?.prompt_eval_cached_count === "number" ? body.prompt_eval_cached_count : 0,
+    cached_input_tokens: typeof body?.prompt_eval_cached_count === "number" ? body.prompt_eval_cached_count : null,
   };
 }
 
@@ -155,7 +155,7 @@ function parseChatBody(body: any) {
     model: body?.model || "unknown",
     input_tokens: body?.prompt_eval_count || 0,
     output_tokens: body?.eval_count || 0,
-    cached_input_tokens: typeof body?.prompt_eval_cached_count === "number" ? body.prompt_eval_cached_count : 0,
+    cached_input_tokens: typeof body?.prompt_eval_cached_count === "number" ? body.prompt_eval_cached_count : null,
   };
 }
 
@@ -195,7 +195,7 @@ function parseOpenAIChatCompletionBody(text: string, defaultModel: string): { mo
     cached_input_tokens:
       typeof lastUsage.prompt_tokens_details?.cached_tokens === "number"
         ? lastUsage.prompt_tokens_details.cached_tokens
-        : 0,
+        : null,
   };
 }
 
@@ -203,7 +203,7 @@ async function parseOllamaResponse(
   endpoint: string,
   contentType: string | null,
   body: Uint8Array
-): Promise<{ model: string; input_tokens: number; output_tokens: number; cached_input_tokens: number } | null> {
+): Promise<{ model: string; input_tokens: number; output_tokens: number; cached_input_tokens: number | null } | null> {
   const text = new TextDecoder().decode(body);
 
   if (endpoint === "/api/generate") {
