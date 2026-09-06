@@ -296,10 +296,10 @@ function readTodayUsage(keyHash: string): UsageResult {
 function readUsageRecordsAfterDate(afterDate: string) {
   const rows = db
     .query<
-      { id: number; timestamp: string; date: string; model: string; input_tokens: number; output_tokens: number; total_tokens: number; endpoint: string; key_hash: string },
+      { id: number; timestamp: string; date: string; model: string; input_tokens: number; output_tokens: number; total_tokens: number; endpoint: string; key_hash: string; cached_input_tokens: number | null },
       [string]
     >(
-      "SELECT id, timestamp, date, model, input_tokens, output_tokens, total_tokens, endpoint, key_hash FROM usage_logs WHERE date > ? ORDER BY date, timestamp"
+      "SELECT id, timestamp, date, model, input_tokens, output_tokens, total_tokens, endpoint, key_hash, cached_input_tokens FROM usage_logs WHERE date > ? ORDER BY date, timestamp"
     )
     .all(afterDate);
   return rows;
