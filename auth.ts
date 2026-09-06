@@ -47,16 +47,26 @@ const db = (() => {
       output_tokens INTEGER NOT NULL DEFAULT 0,
       total_tokens INTEGER NOT NULL DEFAULT 0,
       endpoint TEXT NOT NULL,
-      key_hash TEXT NOT NULL
+      key_hash TEXT NOT NULL,
+      cached_input_tokens INTEGER
     );
     CREATE INDEX IF NOT EXISTS idx_usage_date ON usage_logs(date);
     CREATE INDEX IF NOT EXISTS idx_usage_date_key ON usage_logs(date, key_hash);
   `);
+
+  // Sanity check: add cached_input_tokens for DBs created before it existed.
+  // Existing rows default to NULL (backwards compatibility).
+  const columns = database.query("PRAGMA table_info(usage_logs)").all() as { name: string }[];
+  if (!columns.some(col => col.name === "cached_input_tokens")) {
+    database.exec("ALTER TABLE usage_logs ADD COLUMN cached_input_tokens INTEGER DEFAULT NULL");
+    console.log("Migration: added cached_input_tokens column to usage_logs");
+  }
+
   return database;
 })();
 
 const insertUsage = db.prepare(
-  "INSERT INTO usage_logs (timestamp, date, model, input_tokens, output_tokens, total_tokens, endpoint, key_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+  "INSERT INTO usage_logs (timestamp, date, model, input_tokens, output_tokens, total_tokens, endpoint, key_hash, cached_input_tokens) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
 );
 
 function migrateFromJsonl() {
@@ -80,7 +90,8 @@ function migrateFromJsonl() {
         output,
         rec.total_tokens ?? input + output,
         rec.endpoint || "unknown",
-        rec.key_hash || "unknown"
+        rec.key_hash || "unknown",
+        null
       );
       migrated++;
     } catch (err) {
@@ -109,6 +120,7 @@ function logUsage(record: {
   total_tokens: number;
   endpoint: string;
   key_hash: string;
+  cached_input_tokens: number;
 }) {
   console.log(`${record.timestamp}: Logging usage for ${record.key_hash}`);
   try {
@@ -120,7 +132,8 @@ function logUsage(record: {
       record.output_tokens,
       record.total_tokens,
       record.endpoint,
-      record.key_hash
+      record.key_hash,
+      record.cached_input_tokens
     );
     console.log(`${record.timestamp}: inserted usage record`);
   } catch (err) {
@@ -133,6 +146,7 @@ function parseGenerateBody(body: any) {
     model: body?.model || "unknown",
     input_tokens: body?.prompt_eval_count || 0,
     output_tokens: body?.eval_count || 0,
+    cached_input_tokens: typeof body?.prompt_eval_cached_count === "number" ? body.prompt_eval_cached_count : 0,
   };
 }
 
@@ -141,13 +155,14 @@ function parseChatBody(body: any) {
     model: body?.model || "unknown",
     input_tokens: body?.prompt_eval_count || 0,
     output_tokens: body?.eval_count || 0,
+    cached_input_tokens: typeof body?.prompt_eval_cached_count === "number" ? body.prompt_eval_cached_count : 0,
   };
 }
 
-function parseOpenAIChatCompletionBody(text: string, defaultModel: string): { model: string; input_tokens: number; output_tokens: number } | null {
+function parseOpenAIChatCompletionBody(text: string, defaultModel: string): { model: string; input_tokens: number; output_tokens: number; cached_input_tokens: number | null } | null {
   // OpenAI-compatible SSE: lines like "data: {...}" or a single JSON object.
   // Ollama's /v1/chat/completions may stream chunks and a final chunk containing usage.
-  let lastUsage: { prompt_tokens?: number; completion_tokens?: number } | null = null;
+  let lastUsage: { prompt_tokens?: number; prompt_tokens_details?: { cached_tokens?: number }; completion_tokens?: number } | null = null;
   let model = defaultModel;
 
   const lines = text.split("\n");
@@ -177,6 +192,10 @@ function parseOpenAIChatCompletionBody(text: string, defaultModel: string): { mo
     model: model || "unknown",
     input_tokens: lastUsage.prompt_tokens || 0,
     output_tokens: lastUsage.completion_tokens || 0,
+    cached_input_tokens:
+      typeof lastUsage.prompt_tokens_details?.cached_tokens === "number"
+        ? lastUsage.prompt_tokens_details.cached_tokens
+        : 0,
   };
 }
 
@@ -184,7 +203,7 @@ async function parseOllamaResponse(
   endpoint: string,
   contentType: string | null,
   body: Uint8Array
-): Promise<{ model: string; input_tokens: number; output_tokens: number } | null> {
+): Promise<{ model: string; input_tokens: number; output_tokens: number; cached_input_tokens: number } | null> {
   const text = new TextDecoder().decode(body);
 
   if (endpoint === "/api/generate") {
@@ -495,6 +514,7 @@ const server = Bun.serve({
           total_tokens: parsed.input_tokens + parsed.output_tokens,
           endpoint: url.pathname,
           key_hash: keyHash,
+          cached_input_tokens: parsed.cached_input_tokens,
         });
       } else {
         console.log(`${timestamp} skipped logging: endpoint=${url.pathname} content-type=${res.headers.get("content-type")}`);
