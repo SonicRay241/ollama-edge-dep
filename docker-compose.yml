@@ -2,6 +2,7 @@ services:
   ollama:
     image: alpine/ollama:latest
     restart: unless-stopped
+    pull_policy: always
 
     expose:
       - "11434"
