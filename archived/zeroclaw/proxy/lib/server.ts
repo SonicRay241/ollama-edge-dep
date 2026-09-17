@@ -1,4 +1,4 @@
-import { getDiscordUserId } from "./user-mapper";
+import { getDiscordUserId, getUserIdFromEmail } from "./user-mapper";
 import type { ChatCompletionBody } from "./types";
 import { ZCBridge } from "./bridge";
 import { formatMessagesForZC } from "./message-formatter";
@@ -154,15 +154,15 @@ export const createServer = (zcToken: string) =>
       }
 
       // Check if bearer in registry
-      let discordUserId: string | null = null
+      let userId: string | null = null
 
-      discordUserId = getDiscordUserId(bearer);
+      userId = getDiscordUserId(bearer);
 
-      if (!discordUserId && DEFAULT_API_KEY && bearer == DEFAULT_API_KEY) {
-        discordUserId = getDiscordUserId(openWebuiEmail)
+      if (!userId && DEFAULT_API_KEY && bearer == DEFAULT_API_KEY) {
+        userId = getUserIdFromEmail(openWebuiEmail)
       }
 
-      if (!discordUserId) {
+      if (!userId) {
         return new Response(
           JSON.stringify({
             error: {
@@ -181,8 +181,8 @@ export const createServer = (zcToken: string) =>
         req.headers.get("X-OpenWebUI-Chat-Id");
 
       const sessionId = openwebuiChatId
-        ? `openwebui_${openwebuiChatId}_${discordUserId}`
-        : `openwebui_default_${discordUserId}`;
+        ? `openwebui_${openwebuiChatId}_${userId}`
+        : `openwebui_default_${userId}`;
 
       let body: ChatCompletionBody;
       try {

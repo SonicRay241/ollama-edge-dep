@@ -1,0 +1,46 @@
+# Hermes Agent on Coolify.
+#
+# Outbound LLM calls go to the bearer-auth OpenAI-compatible proxy in this
+# repo (see ../proxy). Hermes scopes OPENAI_API_KEY to custom endpoints:
+# with OPENAI_BASE_URL set it is sent as "Authorization: Bearer ..." to that
+# endpoint only — never to openrouter.ai / ai-gateway.vercel.sh.
+# https://hermes-agent.nousresearch.com/docs/developer-guide/provider-runtime
+#
+# Required Coolify environment variables:
+#   OPENAI_API_KEY   Bearer token accepted by the proxy (its API_KEYS list).
+#   OPENAI_BASE_URL  Proxy OpenAI base URL, no trailing slash, e.g.
+#                    http://proxy:8080/v1 (shared Docker network / service DNS)
+#                    or https://<proxy-domain>/v1 (proxied public URL).
+#   API_SERVER_KEY   Inbound gateway API auth, min 8 chars: openssl rand -hex 32
+services:
+  hermes-agent:
+    image: 'nousresearch/hermes-agent:latest'
+    command: ['gateway', 'run']
+    restart: unless-stopped
+    expose:
+      - '8642'
+    environment:
+      - 'HERMES_UID=${HERMES_UID:-1000}'
+      - 'HERMES_GID=${HERMES_GID:-1000}'
+      # Expose the gateway's OpenAI-compatible API server + /health endpoint.
+      - 'API_SERVER_ENABLED=true'
+      - 'API_SERVER_HOST=0.0.0.0'
+      - 'API_SERVER_KEY=${API_SERVER_KEY:?API_SERVER_KEY required (openssl rand -hex 32)}'
+      # Outbound inference via the bearer-auth proxy (custom OpenAI-compatible endpoint).
+      - 'OPENAI_API_KEY=${OPENAI_API_KEY:?OPENAI_API_KEY required (proxy bearer token)}'
+      - 'OPENAI_BASE_URL=${OPENAI_BASE_URL:?OPENAI_BASE_URL required (e.g. http://proxy:8080/v1)}'
+    volumes:
+      # Single source of truth for all Hermes state (config.yaml, .env, sessions,
+      # memories, skills). Named volume => native ext4 => SQLite WAL is safe.
+      - 'hermes-data:/opt/data'
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'curl -sf -H "Authorization: Bearer $$API_SERVER_KEY" http://127.0.0.1:8642/health || exit 1'
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+volumes:
+  hermes-data:

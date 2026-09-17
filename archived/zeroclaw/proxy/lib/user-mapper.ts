@@ -16,5 +16,15 @@ export function getDiscordUserId(token: string | null): string | null {
   return userTokenRegistry.get(token) || null
 }
 
+export function getUserIdFromEmail(token: string | null): string | null {
+  let uid = getDiscordUserId(token)
+
+  if (!uid) {
+    
+  }
+
+  return uid
+}
+
 initRegistry(USER_MAPPINGS)
 initRegistry(USER_MAPPINGS_OPEN_WEBUI)
