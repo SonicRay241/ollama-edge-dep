@@ -25,7 +25,7 @@ services:
       # Expose the gateway's OpenAI-compatible API server + /health endpoint.
       - 'API_SERVER_ENABLED=true'
       - 'API_SERVER_HOST=0.0.0.0'
-      - 'API_SERVER_KEY=${API_SERVER_KEY:?API_SERVER_KEY required (openssl rand -hex 32)}'
+      - 'API_SERVER_KEY=${API_SERVER_KEY:?API_SERVER_KEY required}'
       # Outbound inference via the bearer-auth proxy (custom OpenAI-compatible endpoint).
       - 'OPENAI_API_KEY=${OPENAI_API_KEY:?OPENAI_API_KEY required (proxy bearer token)}'
       - 'OPENAI_BASE_URL=${OPENAI_BASE_URL:?OPENAI_BASE_URL required (e.g. http://proxy:8080/v1)}'
