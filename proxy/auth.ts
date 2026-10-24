@@ -8,6 +8,7 @@ const PORT = parseInt(process.env.PORT || "8080");
 const API_KEYS = (process.env.API_KEYS || "").split(",").map(k => k.trim()).filter(Boolean);
 const SYSTEM_KEY = process.env.SYSTEM_KEY || "";
 const LOG_PATH = process.env.LOG_PATH || "state/proxy-costs.jsonl";
+const LOGGING_DISABLED = (process.env.LOGGING_DISABLED || "") !== "";
 const DB_PATH = process.env.DB_PATH || "state/proxy-costs.db";
 
 function validateToken(token: string): boolean {
@@ -159,6 +160,41 @@ function parseChatBody(body: any) {
   };
 }
 
+function parseEmbedBody(body: unknown) {
+  const model =
+    body && typeof body === "object" && "model" in body && typeof body.model === "string" ? body.model : "unknown";
+  const promptEvalCount =
+    body && typeof body === "object" && "prompt_eval_count" in body && typeof body.prompt_eval_count === "number"
+      ? body.prompt_eval_count
+      : 0;
+  return {
+    model,
+    input_tokens: promptEvalCount,
+    output_tokens: 0,
+    cached_input_tokens: null,
+  };
+}
+
+function parseSystemOneBody(body: unknown) {
+  let model = "unknown";
+  let inputTokens = 0;
+  let outputTokens = 0;
+  if (body && typeof body === "object") {
+    if ("model" in body && typeof body.model === "string") model = body.model;
+    if ("usage" in body && body.usage && typeof body.usage === "object") {
+      const usage = body.usage;
+      if ("input_tokens" in usage && typeof usage.input_tokens === "number") inputTokens = usage.input_tokens;
+      if ("output_tokens" in usage && typeof usage.output_tokens === "number") outputTokens = usage.output_tokens;
+    }
+  }
+  return {
+    model,
+    input_tokens: inputTokens,
+    output_tokens: outputTokens,
+    cached_input_tokens: null,
+  };
+}
+
 function parseOpenAIChatCompletionBody(text: string, defaultModel: string): { model: string; input_tokens: number; output_tokens: number; cached_input_tokens: number | null } | null {
   // OpenAI-compatible SSE: lines like "data: {...}" or a single JSON object.
   // Ollama's /v1/chat/completions may stream chunks and a final chunk containing usage.
@@ -238,6 +274,22 @@ async function parseOllamaResponse(
           }
         } catch {}
       }
+    }
+  }
+
+  if (endpoint === "/api/embed") {
+    try {
+      return parseEmbedBody(JSON.parse(text));
+    } catch {
+      return null;
+    }
+  }
+
+  if (endpoint === "/v1/systemone") {
+    try {
+      return parseSystemOneBody(JSON.parse(text));
+    } catch {
+      return null;
     }
   }
 
@@ -435,7 +487,10 @@ const server = Bun.serve({
     let body: BodyInit | null = req.body;
 
     // Middleware: ensure Ollama returns token usage for logging.
-    if (req.method !== "GET" && req.method !== "HEAD" && (
+    if (
+      !LOGGING_DISABLED &&
+      req.method !== "GET" &&
+      req.method !== "HEAD" && (
       url.pathname === "/api/generate" ||
       url.pathname === "/api/chat" ||
       url.pathname === "/v1/chat/completions"
@@ -478,9 +533,12 @@ const server = Bun.serve({
     console.log(`${timestamp} upstream ${res.status} ${res.statusText} content-type=${res.headers.get("content-type")}`);
 
     const isLoggable =
-      url.pathname === "/api/generate" ||
-      url.pathname === "/api/chat" ||
-      url.pathname === "/v1/chat/completions";
+      !LOGGING_DISABLED &&
+      (url.pathname === "/api/generate" ||
+        url.pathname === "/api/chat" ||
+        url.pathname === "/v1/chat/completions" ||
+        url.pathname === "/api/embed" ||
+        url.pathname === "/v1/systemone");
 
     if (isLoggable && res.body) {
       const chunks: Uint8Array[] = [];
