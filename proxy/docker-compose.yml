@@ -11,6 +11,7 @@ services:
       OLLAMA_HOST: "0.0.0.0"
       OLLAMA_CONTEXT_LENGTH: ${OLLAMA_CONTEXT_LENGTH:-131072}
       OLLAMA_API_KEY: ${OLLAMA_API_KEY}
+      OLLAMA_KEEP_ALIVE: -1
 
     volumes:
       - ollama_data:/root/.ollama
@@ -21,6 +22,18 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
+
+  models:
+    image: alpine/ollama:latest
+    restart: "no"
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    command:
+      - pull
+      - hf.co/Seneelya/harrier-oss-v1-270m-GGUF:Q8_0
 
   proxy:
     build: .
